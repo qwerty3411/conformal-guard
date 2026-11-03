@@ -1,0 +1,6 @@
+{
+ "rule": "local",
+ "applied_at": "2026-11-02 00:35",
+ "dropped_v2_flags": 168,
+ "audit_file": "results\\label_audit.csv"
+}

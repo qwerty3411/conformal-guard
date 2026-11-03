@@ -1,0 +1,522 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Conformal Guard</title>
+<meta name="description" content="A sentence-level filter for Muse Spark's medical answers with a calibrated bound on contradictions with the reference answer, replayed on 245 held-out answers.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;1,6..72,400&family=Schibsted+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  /* palette */
+  --un-blue: #5C95E0; --chocolate: #1D3309; --android: #A7BD40; --spring: #C7DA91; --axolotl: #6A804F;
+  /* roles */
+  --page: #FBFCF7; --plain: #FFFFFF; --ink: var(--chocolate); --ink-2: #4E6238; --rule: #E2E8D2; --rule-strong: #C9D3B3;
+  --link: #2F64B0; --spring-soft: #EEF4DC;
+  /* meaning: right, review, wrong */
+  --right: #2F7D32; --right-text: #24622A; --right-soft: #E6F1E1;
+  --review: #E2A400; --review-text: #6E5000; --review-soft: #FBF2D2;
+  --wrong: #C23B2A; --wrong-text: #9C2B1E; --wrong-soft: #F8E2DD;
+  --sans: "Schibsted Grotesk", "Helvetica Neue", sans-serif;
+  --serif: "Newsreader", "Iowan Old Style", serif;
+  color-scheme: light;
+}
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body { margin: 0; background: var(--page); color: var(--ink); font: 400 15px/1.6 var(--sans); }
+a { color: var(--link); text-underline-offset: 3px; }
+button, input, select { font: inherit; color: inherit; }
+:focus-visible { outline: 2px solid var(--un-blue); outline-offset: 2px; }
+.wrap { max-width: 1200px; margin: 0 auto; padding: 0 20px; }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+
+/* header */
+header.top .wrap { display: grid; grid-template-columns: 1fr auto; align-items: end; gap: 8px 32px; padding-top: 36px; padding-bottom: 18px; border-bottom: 1px solid var(--rule-strong); }
+h1 { font: 700 30px/1.1 var(--sans); letter-spacing: -0.02em; margin: 0; }
+.kicker { grid-column: 1; margin: 0 0 6px; font: 500 12.5px/1.4 var(--sans); letter-spacing: 0.04em; text-transform: uppercase; color: var(--ink-2); }
+.tagline { grid-column: 1; margin: 6px 0 0; font: 400 17px/1.45 var(--sans); color: var(--ink); max-width: 62ch; }
+.facts { grid-column: 1; margin: 4px 0 0; font-size: 13.5px; color: var(--ink-2); max-width: 80ch; }
+nav.tabs { grid-column: 2; grid-row: 1 / span 4; display: flex; gap: 22px; align-self: end; }
+nav.tabs a { color: var(--ink-2); text-decoration: none; font-weight: 500; padding: 4px 0 6px; border-bottom: 3px solid transparent; }
+nav.tabs a:hover { color: var(--ink); }
+nav.tabs a[aria-current="true"] { color: var(--ink); border-bottom-color: var(--android); }
+@media (max-width: 760px) {
+  header.top .wrap { grid-template-columns: 1fr; padding-top: 24px; }
+  nav.tabs { grid-column: 1; grid-row: auto; margin-top: 10px; }
+}
+
+/* explore */
+.explore { display: grid; grid-template-columns: 320px minmax(0, 1fr); gap: 40px; padding-top: 28px; padding-bottom: 56px; }
+@media (max-width: 900px) { .explore { grid-template-columns: 1fr; gap: 24px; } }
+.picker { display: flex; flex-direction: column; max-height: calc(100vh - 48px); position: sticky; top: 24px; }
+@media (max-width: 900px) { .picker { position: static; max-height: 44vh; } }
+.picker .controls { display: grid; gap: 10px; padding-bottom: 12px; border-bottom: 1px solid var(--rule-strong); }
+.picker input[type=search] { width: 100%; padding: 9px 12px; border: 1px solid var(--rule-strong); border-radius: 6px; background: var(--plain); }
+.picker .row { display: flex; gap: 8px; }
+.picker select { flex: 1; min-width: 0; padding: 7px 8px; border: 1px solid var(--rule-strong); border-radius: 6px; background: var(--plain); }
+.picker label.check { font-size: 13px; color: var(--ink-2); display: flex; gap: 8px; align-items: center; }
+.picker .count { font-size: 12.5px; color: var(--ink-2); }
+.qlist { list-style: none; margin: 0; padding: 0; overflow-y: auto; flex: 1; }
+.qlist li { border-bottom: 1px solid var(--rule); }
+.qlist button { all: unset; box-sizing: border-box; display: grid; grid-template-columns: 12px 1fr; gap: 10px; width: 100%; padding: 11px 10px 11px 6px; cursor: pointer; font-size: 14px; line-height: 1.4; color: var(--ink); border-left: 3px solid transparent; }
+.qlist button:hover { background: var(--spring-soft); }
+.qlist button[aria-current="true"] { background: var(--spring); border-left-color: var(--chocolate); }
+.qlist button:focus-visible { outline: 2px solid var(--un-blue); outline-offset: -2px; }
+.qlist .meta { display: block; font-size: 12px; color: var(--ink-2); margin-top: 3px; }
+.qlist .meta .warn { color: var(--wrong-text); }
+.dot { width: 9px; height: 9px; border-radius: 50%; margin-top: 6px; }
+.dot.ship { background: var(--right); } .dot.review { background: var(--review); } .dot.block { background: var(--wrong); }
+.dot.ood { background: transparent; border: 1.5px solid var(--axolotl); }
+
+.viewer { min-width: 0; max-width: 760px; }
+.qhead .group { font-size: 13px; color: var(--ink-2); }
+.qhead h2 { font: 600 25px/1.3 var(--sans); letter-spacing: -0.01em; margin: 4px 0 18px; }
+.decision { border-left: 4px solid; padding: 12px 16px; margin-bottom: 26px; }
+.decision.ship { border-color: var(--right); background: var(--right-soft); }
+.decision.review { border-color: var(--review); background: var(--review-soft); }
+.decision.block { border-color: var(--wrong); background: var(--wrong-soft); }
+.decision.ood { border-color: var(--axolotl); background: var(--spring-soft); }
+.decision .verdict { display: flex; align-items: center; gap: 8px; font-weight: 700; font-size: 16px; margin: 0 0 4px; }
+.decision .verdict svg { width: 18px; height: 18px; flex: none; }
+.decision.ship .verdict { color: var(--right-text); } .decision.review .verdict { color: var(--review-text); }
+.decision.block .verdict { color: var(--wrong-text); } .decision.ood .verdict { color: var(--ink-2); }
+.decision p { margin: 0; font-size: 14.5px; }
+.decision .fine { margin-top: 8px; font-size: 12.5px; color: var(--ink-2); }
+
+.alpha { margin: 0 0 22px; }
+.alpha .head { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+.alpha label { font-weight: 600; font-size: 14.5px; }
+.alpha output { font: 500 24px/1 var(--serif); }
+.alpha .guarantee { font-size: 14px; color: var(--ink-2); }
+input[type=range] { -webkit-appearance: none; appearance: none; width: 100%; height: 26px; background: transparent; margin: 8px 0 0; cursor: pointer; }
+input[type=range]::-webkit-slider-runnable-track { height: 2px; background: var(--rule-strong); }
+input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 18px; height: 18px; border-radius: 50%; background: var(--un-blue); border: 3px solid var(--plain); box-shadow: 0 0 0 1px var(--un-blue); margin-top: -8px; }
+input[type=range]::-moz-range-track { height: 2px; background: var(--rule-strong); }
+input[type=range]::-moz-range-thumb { width: 12px; height: 12px; border-radius: 50%; background: var(--un-blue); border: 3px solid var(--plain); box-shadow: 0 0 0 1px var(--un-blue); }
+.ticks { display: flex; justify-content: space-between; font-size: 11.5px; color: var(--ink-2); padding: 0 2px; }
+.ticks span.on { color: var(--ink); font-weight: 600; }
+.alpha .explain { font-size: 13.5px; color: var(--ink-2); margin: 10px 0 0; max-width: 70ch; }
+
+.legend { display: flex; flex-wrap: wrap; gap: 6px 18px; font-size: 12.5px; color: var(--ink-2); margin: 0 0 12px; align-items: center; }
+.legend .item { display: inline-flex; align-items: center; gap: 6px; }
+.sample-kept { border-bottom: 2px solid var(--un-blue); color: var(--ink); }
+.sample-drop { text-decoration: line-through; color: var(--axolotl); }
+.toggle { font-size: 12.5px; color: var(--ink-2); display: inline-flex; gap: 6px; align-items: center; margin-left: auto; }
+
+.answer { font: 400 19.5px/1.8 var(--serif); margin: 0 0 8px; max-width: 66ch; color: var(--ink); }
+.sent { cursor: pointer; border-radius: 3px; padding: 0 1px; transition: color .15s, background .15s; }
+.sent.kept { text-decoration: underline; text-decoration-color: var(--un-blue); text-decoration-thickness: 2px; text-underline-offset: 5px; }
+.sent.dropped { color: var(--axolotl); text-decoration: line-through; text-decoration-color: rgba(106,128,79,.7); text-decoration-thickness: 1px; }
+.sent:hover { background: var(--spring-soft); }
+.sent[aria-pressed="true"] { background: var(--spring); }
+.mark { font: 600 11.5px/1 var(--sans); white-space: nowrap; margin: 0 4px 0 2px; vertical-align: 3px; }
+.mark.contradicted { color: var(--wrong-text); }
+.mark.supported { color: var(--right-text); }
+.hide-labels .mark { display: none; }
+.hint { font-size: 12.5px; color: var(--ink-2); margin: 0; }
+
+.detail { margin-top: 24px; padding-top: 18px; border-top: 1px solid var(--rule-strong); font-size: 14px; }
+.detail .which { font-size: 13px; color: var(--ink-2); margin: 0 0 6px; }
+.detail .quote { font: 400 17px/1.6 var(--serif); margin: 0 0 14px; }
+.detail .state { margin: 0 0 12px; }
+.pill { display: inline-block; font-size: 12px; font-weight: 600; padding: 2px 8px; border-radius: 999px; margin-left: 6px; }
+.pill.kept { background: #E4EEFB; color: #2F64B0; } .pill.dropped { background: var(--spring-soft); color: var(--ink-2); }
+.meters { display: grid; grid-template-columns: minmax(170px, auto) 1fr 3.5ch; gap: 8px 14px; align-items: center; margin: 0 0 14px; max-width: 560px; }
+.meter { height: 6px; background: var(--rule); border-radius: 3px; overflow: hidden; }
+.meter i { display: block; height: 100%; background: var(--axolotl); }
+.meters .v { text-align: right; }
+.label-line { margin: 0 0 8px; }
+.label-line.contradicted b { color: var(--wrong-text); } .label-line.supported b { color: var(--right-text); }
+.conflict { font: italic 400 16px/1.6 var(--serif); border-left: 3px solid var(--wrong); padding: 2px 0 2px 12px; margin: 0 0 14px; }
+.links { margin: 4px 0 0; padding-left: 18px; }
+details.ref { margin-top: 26px; border-top: 1px solid var(--rule); padding-top: 14px; }
+details.ref summary { cursor: pointer; font-weight: 600; font-size: 14px; }
+details.ref p { font: 400 16px/1.7 var(--serif); color: var(--ink); white-space: pre-line; max-width: 66ch; }
+
+/* proof & how */
+section.page { padding-top: 34px; padding-bottom: 60px; }
+.claim { font: 400 31px/1.3 var(--serif); letter-spacing: -0.005em; max-width: 36ch; margin: 0 0 10px; }
+.claim b { font-weight: 500; border-bottom: 3px solid var(--android); }
+.lede { color: var(--ink-2); max-width: 74ch; margin: 0 0 26px; font-size: 15px; }
+dl.stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 0 36px; margin: 0 0 34px; border-top: 1px solid var(--rule-strong); }
+dl.stats div { padding: 14px 0; border-bottom: 1px solid var(--rule); }
+dl.stats dt { font-size: 13px; color: var(--ink-2); }
+dl.stats dd { margin: 2px 0 0; font-size: 15px; }
+dl.stats dd b { font: 500 22px/1.2 var(--serif); margin-right: 6px; }
+h2.section { font: 600 20px/1.3 var(--sans); margin: 40px 0 14px; letter-spacing: -0.01em; }
+.figs { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 28px 32px; }
+@media (max-width: 900px) { .figs { grid-template-columns: minmax(0, 1fr); } }
+figure { margin: 0; }
+figure.wide { grid-column: 1 / -1; }
+figure img { width: 100%; height: auto; display: block; border: 1px solid var(--rule); background: #fcfcfb; }
+figcaption { font-size: 13.5px; color: var(--ink-2); margin-top: 8px; max-width: 70ch; }
+.tbl-wrap { overflow-x: auto; }
+table { border-collapse: collapse; font-size: 14px; min-width: 480px; width: 100%; }
+.tblblock h3 { font: 600 16px/1.3 var(--sans); margin: 0 0 8px; }
+th, td { text-align: right; padding: 8px 10px; border-bottom: 1px solid var(--rule); }
+th:first-child, td:first-child { text-align: left; }
+thead th { font-weight: 600; font-size: 13px; color: var(--ink-2); border-bottom: 1px solid var(--rule-strong); }
+tr.main td { font-weight: 600; background: var(--spring-soft); }
+.note { font-size: 13px; color: var(--ink-2); max-width: 74ch; }
+ol.steps { padding-left: 0; list-style: none; counter-reset: s; max-width: 760px; margin: 0; }
+ol.steps li { counter-increment: s; display: grid; grid-template-columns: 2.2em 1fr; gap: 4px 12px; padding: 14px 0; border-bottom: 1px solid var(--rule); }
+ol.steps li::before { content: counter(s); font: 500 22px/1.2 var(--serif); color: var(--axolotl); }
+ol.steps b { display: block; font-weight: 600; }
+ul.notes { max-width: 760px; padding-left: 18px; }
+ul.notes li { margin-bottom: 10px; }
+.how-lede { font: 400 24px/1.4 var(--serif); max-width: 40ch; margin: 0 0 24px; }
+footer { color: var(--ink-2); font-size: 12.5px; }
+footer .wrap { border-top: 1px solid var(--rule-strong); padding-top: 18px; padding-bottom: 34px; }
+footer p { max-width: 90ch; margin: 0 0 8px; }
+[hidden] { display: none !important; }
+.empty { padding: 30px 0; color: var(--ink-2); }
+</style>
+</head>
+<body>
+<header class="top">
+  <div class="wrap">
+    <p class="kicker">Hackathon theme: Build for Your World</p>
+    <h1>Conformal Guard</h1>
+    <p class="tagline">Frees a pharmacist from checking every AI draft: they set how often Muse Spark's unchecked medical answers may contradict the reference answer, and it tells them how many drafts they must read to keep that bound.</p>
+    <p class="facts" id="facts"></p>
+    <nav class="tabs" aria-label="Sections">
+      <a href="#explore" data-tab="explore">Explore</a>
+      <a href="#proof" data-tab="proof">Proof</a>
+      <a href="#how" data-tab="how">How it works</a>
+    </nav>
+  </div>
+</header>
+
+<main>
+  <div id="tab-explore" class="wrap explore">
+    <aside class="picker" aria-label="Test questions">
+      <div class="controls">
+        <input type="search" id="q" placeholder="Search questions" aria-label="Search questions">
+        <div class="row">
+          <select id="fgroup" aria-label="Group"><option value="">All groups</option><option value="clinical">Clinical</option><option value="consumer">Consumer</option><option value="medication">Medication</option></select>
+          <select id="fdec" aria-label="Decision"><option value="">All decisions</option><option value="ship">Shipped</option><option value="review">Sent to the pharmacist</option><option value="block">Blocked</option><option value="ood">Outside range</option></select>
+        </div>
+        <label class="check"><input type="checkbox" id="fcon"> Only answers with a contradicted sentence</label>
+        <div class="count" id="count" aria-live="polite"></div>
+      </div>
+      <ul class="qlist" id="qlist"></ul>
+    </aside>
+    <section class="viewer" id="viewer" aria-live="polite"></section>
+  </div>
+
+  <section id="tab-proof" class="page" hidden><div class="wrap" id="proof"></div></section>
+  <section id="tab-how" class="page" hidden><div class="wrap" id="how"></div></section>
+</main>
+
+<footer><div class="wrap" id="foot"></div></footer>
+
+<script src="data.js"></script>
+<script>
+(function () {
+  "use strict";
+  const D = window.CG_DATA;
+  const el = (tag, attrs = {}, ...kids) => {
+    const n = document.createElement(tag);
+    for (const [k, v] of Object.entries(attrs)) {
+      if (v == null || v === false) continue;
+      if (k === "class") n.className = v; else if (k === "html") n.innerHTML = v;
+      else if (k.startsWith("on")) n.addEventListener(k.slice(2), v); else n.setAttribute(k, v === true ? "" : v);
+    }
+    for (const c of kids.flat()) if (c != null && c !== false) n.append(c.nodeType ? c : document.createTextNode(String(c)));
+    return n;
+  };
+  const $ = (s) => document.querySelector(s);
+  if (!D) {
+    $("#viewer").append(el("p", { class: "empty" }, "No data yet. Run python build_demo.py in the project folder, then reload this page."));
+    return;
+  }
+  const num = (v) => (v === "inf" ? Infinity : v === "-inf" ? -Infinity : v);
+  const pct = (x, d = 1) => (x == null ? "–" : (100 * x).toFixed(d) + "%");
+  const S = D.summary;
+  const taus = D.tau.map((t) => ({ alpha: t.alpha, tau: num(t.tau) }));
+  const mainIdx = Math.max(0, taus.findIndex((t) => Math.abs(t.alpha - D.main_alpha) < 1e-9));
+  const mainTau = taus[mainIdx].tau;
+  const byAlpha = Object.fromEntries(S.resplits.by_alpha.map((r) => [r.alpha.toFixed(4), r]));
+  const fmtA = (a) => String(+a.toFixed(4));
+  const cap = (s) => s.charAt(0).toUpperCase() + s.slice(1);
+  $("#q").placeholder = `Search ${D.answers.length} questions`;
+
+  const ICON = {
+    ship: '<svg viewBox="0 0 20 20" aria-hidden="true"><circle cx="10" cy="10" r="9" fill="currentColor"/><path d="M5.8 10.4l2.7 2.7 5.7-6" stroke="#fff" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+    review: '<svg viewBox="0 0 20 20" aria-hidden="true"><circle cx="10" cy="10" r="9" fill="#E2A400"/><path d="M10 5.5v5.5M10 14.2v.3" stroke="#1D3309" stroke-width="2" stroke-linecap="round"/></svg>',
+    block: '<svg viewBox="0 0 20 20" aria-hidden="true"><circle cx="10" cy="10" r="9" fill="currentColor"/><path d="M6.6 6.6l6.8 6.8M13.4 6.6l-6.8 6.8" stroke="#fff" stroke-width="2" stroke-linecap="round"/></svg>',
+    ood: '<svg viewBox="0 0 20 20" aria-hidden="true"><circle cx="10" cy="10" r="8" fill="none" stroke="currentColor" stroke-width="2"/><path d="M10 6v5M10 14v.3" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>',
+  };
+  const DEC = { ship: "Shipped as written", review: "Sent to the pharmacist", block: "Blocked", ood: "Outside the calibrated range" };
+
+  for (const a of D.answers) {
+    a.weakest = Math.min(...a.claims.map((c) => c.score));
+    a.hasContra = a.claims.some((c) => c.label === "contradicted");
+    let d = a.weakest >= D.ship_lambda ? "ship" : a.claims.some((c) => c.score > mainTau) ? "review" : "block";
+    a.decision0 = d;                                   // decision before the similarity check (what calibrate.py counts)
+    if (D.domain_bar != null && a.domain != null && a.domain < D.domain_bar) d = "ood";
+    a.decision = d;
+  }
+
+  // facts shown on the page, computed from the same data
+  const nAns = D.answers.length;
+  const lastIdx = (a) => Math.max(...a.claims.map((c) => c.i));
+  const firstKept = D.answers.filter((a) => a.claims.some((c) => c.i === 0 && c.score > mainTau)).length;
+  const lastKept = D.answers.filter((a) => a.claims.some((c) => c.i === lastIdx(a) && c.score > mainTau)).length;
+  const reviewed = D.answers.filter((a) => a.decision === "review");
+  const reviewCov = reviewed.length ? reviewed.filter((a) => !a.claims.some((c) => c.label === "contradicted" && c.score > mainTau)).length / reviewed.length : null;
+  const movedOod = D.answers.filter((a) => a.decision === "ood" && a.decision0 === "ship").length;
+  const MA = S.matrices.answers;
+  const shipN = MA.ship.clean + MA.ship.contradicted, revN = MA.review.clean + MA.review.contradicted;
+  const shipRate = shipN ? MA.ship.contradicted / shipN : null, revRate = revN ? MA.review.contradicted / revN : null;
+  const goldenShare = D.answers.filter((a) => a.source === "kqa_golden").length / nAns;
+  const SRC = { kqa_golden: "K-QA golden: written by physicians",
+    kqa_silver_wogold: "K-QA silver: generated with GPT-4 by the MedLFQA authors",
+    healthsearch_qa: "HealthSearchQA: generated with GPT-4 by the MedLFQA authors",
+    medication_qa: "MedicationQA: taken from health websites",
+    live_qa: "LiveQA: taken from health websites" };
+
+  // header facts & footer
+  $("#facts").textContent = `Replaying ${D.answers.length} held-out answers from ${D.model}, generated on ${D.generated}. ` +
+    `Calibrated on ${D.n_cal} other answers at α = ${fmtA(D.main_alpha)}. Runs in LlamaFirewall: Llama Guard 3 1B checks the question, the conformal guard checks the answer.`;
+  $("#foot").append(
+    el("p", {}, `Everything on this page comes from the frozen pipeline; nothing is computed live and no API is called. The answers were generated with ${D.model} on ${D.generated}, before an automated restriction on the developer account, which is under appeal. No other model generated answers.`),
+    el("p", {}, `Questions and reference answers from MedLFQA (Jeong et al., 2024): written by physicians for K-QA golden, generated with GPT-4 for K-QA silver and HealthSearchQA, taken from health websites for MedicationQA and LiveQA. Evidence from MedlinePlus, U.S. National Library of Medicine. Not medical advice. Built ${D.built}.`));
+
+  // tabs
+  function showTab(name) {
+    for (const t of ["explore", "proof", "how"]) {
+      $("#tab-" + t).hidden = t !== name;
+      document.querySelector(`nav.tabs a[data-tab="${t}"]`).setAttribute("aria-current", t === name ? "true" : "false");
+    }
+  }
+  const fromHash = () => showTab(["#proof", "#how"].includes(location.hash) ? location.hash.slice(1) : "explore");
+  window.addEventListener("hashchange", fromHash);
+  fromHash();
+
+  // picker
+  const state = { sel: null, alphaIdx: mainIdx, sent: null, labels: true };
+  function filtered() {
+    const q = $("#q").value.trim().toLowerCase(), g = $("#fgroup").value, d = $("#fdec").value, c = $("#fcon").checked;
+    return D.answers.filter((a) => (!q || a.question.toLowerCase().includes(q)) && (!g || a.group === g) &&
+      (!d || a.decision === d) && (!c || a.hasContra));
+  }
+  function renderList() {
+    const list = filtered(), ul = $("#qlist");
+    ul.replaceChildren();
+    $("#count").textContent = list.length === D.answers.length ? `${list.length} answers` : `${list.length} of ${D.answers.length} answers`;
+    for (const a of list) {
+      ul.append(el("li", {}, el("button", { type: "button", "aria-current": a === state.sel ? "true" : "false", onclick: () => select(a) },
+        el("span", { class: "dot " + a.decision, role: "img", "aria-label": DEC[a.decision], title: DEC[a.decision] }),
+        el("span", {}, a.question, el("span", { class: "meta" }, cap(a.group),
+          a.hasContra ? el("span", { class: "warn" }, ", has a contradicted sentence") : null)))));
+    }
+    if (!list.length) ul.append(el("li", { class: "empty" }, "No question matches. Clear the search or a filter."));
+  }
+  for (const id of ["#q", "#fgroup", "#fdec", "#fcon"]) $(id).addEventListener("input", renderList);
+
+  function select(a) { state.sel = a; state.sent = null; renderList(); renderViewer(); }
+
+  function certificate(a) {
+    const al = D.main_alpha, ab = S.abstention, cv = S.conformal[String(al)] || {};
+    if (a.decision === "ship") return `Every sentence cleared the ship threshold. That rule is calibrated so that at most ${pct(al, 0)} of all answers are shipped while containing a sentence that contradicts the reference answer; on held-out answers it was ${pct(ab.p_shipped_and_wrong)} of all answers, and ${pct(ab.p_wrong_given_shipped)} of the answers that shipped.`;
+    if (a.decision === "review") {
+      const k = a.claims.filter((c) => c.score > mainTau).length;
+      return `${k} of ${a.claims.length} sentences pass the filter; the pharmacist gets the whole draft with the others marked. Across all answers, filtering at α = ${fmtA(al)} leaves at least ${pct(1 - al, 0)} with no contradicted sentence. That average isn't guaranteed for the answers sent to review, because the system picked them; on held-out review answers it was ${pct(reviewCov)}.`;
+    }
+    if (a.decision === "block") return `No sentence cleared the threshold at α = ${fmtA(al)}, so nothing is sent automatically.`;
+    return "This question is less similar to the calibration questions than 99% of them are to each other, so no claim is made and the full answer goes to the pharmacist. In practice this check mostly flags very short questions.";
+  }
+
+  function renderViewer() {
+    const a = state.sel, v = $("#viewer");
+    v.replaceChildren();
+    if (!a) { v.append(el("p", { class: "empty" }, "Choose a question on the left.")); return; }
+    const t = taus[state.alphaIdx], kept = (c) => c.score > t.tau, nk = a.claims.filter(kept).length;
+    const r = byAlpha[t.alpha.toFixed(4)];
+
+    v.append(el("div", { class: "qhead" }, el("div", { class: "group" }, `${cap(a.group)} question`), el("h2", {}, a.question)));
+    v.append(el("div", { class: "decision " + a.decision, role: "status" },
+      el("p", { class: "verdict", html: ICON[a.decision] + `<span>${DEC[a.decision]}</span>` }),
+      el("p", {}, certificate(a)),
+      el("p", { class: "fine" }, `The decision uses the calibrated level α = ${fmtA(D.main_alpha)}. Weakest sentence ${a.weakest.toFixed(4)}, ship threshold ${D.ship_lambda.toFixed(4)}.` +
+        (a.domain != null && D.domain_bar != null ? ` Similarity to the calibration questions ${a.domain.toFixed(2)}, needs at least ${D.domain_bar.toFixed(2)}.` : "") +
+        " The guarantee is about the method, averaged over questions like these, not a promise about this one answer.")));
+
+    const slider = el("input", { type: "range", id: "alpha", min: 0, max: taus.length - 1, step: 1, value: state.alphaIdx,
+      "aria-valuetext": `alpha ${fmtA(t.alpha)}`,
+      oninput: (e) => { state.alphaIdx = +e.target.value; renderViewer(); $("#alpha").focus(); } });
+    v.append(el("div", { class: "alpha" },
+      el("div", { class: "head" }, el("label", { for: "alpha" }, "Error level α"), el("output", { for: "alpha" }, fmtA(t.alpha)),
+        el("span", { class: "guarantee" }, `at least ${pct(1 - t.alpha, 1)} of filtered answers clean`)),
+      slider,
+      el("div", { class: "ticks", "aria-hidden": "true" }, taus.map((x, i) => el("span", { class: i === state.alphaIdx ? "on" : null }, fmtA(x.alpha)))),
+      el("p", { class: "explain" },
+        `Sentences scoring above ${isFinite(t.tau) ? t.tau.toFixed(4) : (t.tau > 0 ? "∞" : "−∞")} are kept. ` +
+        (r ? `Across 1,000 re-splits this level gave ${pct(r.coverage.mean)} clean answers and kept ${pct(r.kept.mean, 0)} of sentences. ` : "") +
+        `Here it keeps ${nk} of ${a.claims.length}.` +
+        (isFinite(t.tau) ? " The score leans mostly on sentence position, so opening sentences are dropped first." : "") +
+        (a.decision === "ship" ? " This answer was shipped as written; the marks show what filtering would do." : ""))));
+
+    v.append(el("div", { class: "legend" },
+      el("span", { class: "item" }, el("span", { class: "sample-kept" }, "kept")),
+      el("span", { class: "item" }, el("span", { class: "sample-drop" }, "dropped")),
+      el("span", { class: "item" }, el("span", { class: "mark contradicted" }, "✕ contradicts"), "the reference answer"),
+      el("span", { class: "item" }, el("span", { class: "mark supported" }, "✓ supported"), "by it"),
+      el("label", { class: "toggle" }, el("input", { type: "checkbox", checked: state.labels ? true : null,
+        onchange: (e) => { state.labels = e.target.checked; renderViewer(); } }), "Show reference marks")));
+
+    const p = el("p", { class: "answer" + (state.labels ? "" : " hide-labels") });
+    let pos = 0;
+    for (const c of [...a.claims].sort((x, y) => x.s - y.s)) {
+      if (c.s > pos) p.append(a.answer.slice(pos, c.s));
+      const k = kept(c);
+      const open = () => { state.sent = c; renderViewer(); };
+      p.append(el("span", { class: "sent " + (k ? "kept" : "dropped"), role: "button", tabindex: 0,
+        "aria-pressed": state.sent === c ? "true" : "false",
+        "aria-label": `Sentence ${c.i + 1}, ${k ? "kept" : "dropped"}${state.labels && c.label !== "unverifiable" ? ", " + c.label : ""}. Show details.`,
+        onclick: open, onkeydown: (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); open(); } } },
+        a.answer.slice(c.s, c.e)));
+      if (c.label === "contradicted") p.append(el("span", { class: "mark contradicted" }, "✕ contradicts"));
+      else if (c.label === "supported") p.append(el("span", { class: "mark supported" }, "✓"));
+      pos = c.e;
+    }
+    if (pos < a.answer.length) p.append(a.answer.slice(pos));
+    v.append(p, el("p", { class: "hint" }, "Select a sentence to see why it was kept or dropped."));
+
+    const c = state.sent;
+    if (c) {
+      const k = kept(c);
+      const labelText = { contradicted: "contradicts the reference answer.", supported: "supported by the reference answer.",
+        unverifiable: "neither supported nor contradicted by the reference answer." }[c.label];
+      const links = c.links ? [...new Map(c.links.map((l) => [l.url, l])).values()] : [];
+      v.append(el("div", { class: "detail" },
+        el("p", { class: "which" }, `Sentence ${c.i + 1} of ${a.claims.length}`, el("span", { class: "pill " + (k ? "kept" : "dropped") }, k ? "kept" : "dropped")),
+        el("p", { class: "quote" }, c.text),
+        el("p", { class: "state" }, "Score ", el("b", {}, c.score.toFixed(4)), ", threshold ", el("b", {}, isFinite(t.tau) ? t.tau.toFixed(4) : String(t.tau)),
+          ` at α = ${fmtA(t.alpha)}: ${k ? "above it, so kept" : "not above it, so dropped"}.`),
+        el("div", { class: "meters" },
+          el("span", {}, "Agreement with 5 resamples"), el("span", { class: "meter" }, el("i", { style: `width:${(100 * c.agree).toFixed(1)}%` })), el("span", { class: "v" }, c.agree.toFixed(2)),
+          el("span", {}, "Support from MedlinePlus"), el("span", { class: "meter" }, el("i", { style: `width:${(100 * c.evidence).toFixed(1)}%` })), el("span", { class: "v" }, c.evidence.toFixed(2))),
+        el("p", { class: "label-line " + c.label }, el("b", {}, "Reference: "), labelText),
+        c.conflict ? el("p", { class: "conflict" }, c.conflict) : null,
+        links.length ? el("div", {}, "MedlinePlus pages retrieved:",
+          el("ul", { class: "links" }, links.map((l) => el("li", {}, el("a", { href: l.url, target: "_blank", rel: "noopener" }, l.title))))) : null));
+    }
+    v.append(el("details", { class: "ref" }, el("summary", {}, `Reference answer (${SRC[a.source] || a.source})`), el("p", {}, a.reference || "–")));
+  }
+
+  // proof
+  function renderProof() {
+    const P = $("#proof"), rs = S.resplits, ab = S.abstention, al = D.main_alpha;
+    const cv = S.conformal[String(al)] || {}, ret = rs.retention || {}, au = D.audit, rule = D.label_rule;
+    P.append(
+      el("p", { class: "claim" }, `On ${S.counts.test.answers} held-out answers, `, el("b", {}, pct(cv.coverage)),
+        ` of filtered answers had no contradicted sentence, against a ${pct(1 - al, 0)} target. Before filtering, `,
+        el("b", {}, pct(1 - S.raw.test_answers_with_false_claim)), " were already clean."),
+      el("p", { class: "lede" }, `Everything here is measured on answers that played no part in fitting or calibration: ${S.counts.test.answers} test answers, and re-splits of the ${S.counts.calibrate.answers + S.counts.test.answers} calibration and test answers. A contradicted sentence is one an NLI model finds in conflict with a specific passage of the MedLFQA reference answer (label rule "${rule}"). At this level the filter has little to do, and the learned score mostly encodes sentence position, so it drops each answer's opening sentences and keeps about as many sentences as a random score would. On this split the answers sent to the pharmacist looked riskier (the ${pct(ab.share_review, 0)} they review held ${MA.review.contradicted} of the ${MA.review.contradicted + MA.ship.contradicted} contradicted ones), but that didn't replicate on the other held-out half (below). What holds is the bound on what ships unchecked.`));
+    const rows = [
+      ["Held-out test answers", pct(cv.coverage), cv.ci95 ? `clean after filtering (95% CI ${pct(cv.ci95[0])} to ${pct(cv.ci95[1])}); ${pct(1 - S.raw.test_answers_with_false_claim)} before` : ""],
+      ["Shipped with a contradiction", pct(ab.p_shipped_and_wrong), `of test answers, against a bound of ${pct(al, 0)}; 4.7% averaged over 1,000 re-splits of all 573 held-out answers (5.9% without the guard)`],
+      ["The pharmacist's review queue", "7 of 34", `contradicted answers in a 13% queue with every held-out answer judged once (95% CI 9⁠–⁠38%): little better than random. On the test split alone: ${MA.review.contradicted} of ${MA.review.contradicted + MA.ship.contradicted} in ${pct(ab.share_review, 0)}`],
+      ["Sentences kept", pct(cv.claim_retention, 0), ret.combined && ret.random ? `at the calibrated threshold on the test split; ${pct(ret.combined.mean, 0)} averaged over re-splits, where a random score keeps ${pct(ret.random.mean, 0)}` : "at the calibrated threshold on the test split"],
+      ["First sentences kept", `${firstKept} of ${nAns}`, `the learned score mostly encodes position; ${lastKept} of ${nAns} last sentences are kept`],
+      ["Answers shipped as written", pct(ab.share_ship, 0), `the other ${pct(ab.share_review, 0)} go to review` +
+        (movedOod ? `; the similarity check also sends ${movedOod} of the shipped ones to a person` : "")],
+      ["Implementation check", pct(rs.mean), `average over ${rs.n.toLocaleString()} re-splits; theory predicts ${pct(rs.theory_mean)}. Any correct conformal filter matches it, so this checks the code, not the method`],
+    ];
+    if (au && au[rule]) rows.push(["Label audit by hand", `${au[rule].real} of ${au[rule].audited}`,
+      `flags under this rule confirmed as real disagreements; the broad rule: ${au.v2 ? au.v2.real + " of " + au.v2.audited : "–"}` +
+      (au.controls ? `; unflagged controls: ${au.controls.real} of ${au.controls.audited}. How often the labels miss a real disagreement is not measured` : "")]);
+    P.append(el("dl", { class: "stats" }, rows.map(([k, b, s]) => el("div", {}, el("dt", {}, k), el("dd", {}, el("b", {}, b), s)))));
+
+    const fig = (f, capt, wide) => el("figure", { class: wide ? "wide" : null },
+      el("img", { src: `figures/${f}.png`, alt: capt, loading: "lazy" }), el("figcaption", {}, capt));
+    const trs = rs.by_alpha.map((r) => el("tr", { class: Math.abs(r.alpha - al) < 1e-9 ? "main" : null },
+      el("td", {}, fmtA(r.alpha)), el("td", {}, pct(r.target)), el("td", {}, pct(r.coverage.mean)),
+      el("td", {}, `${pct(r.coverage.p05)} to ${pct(r.coverage.p95)}`), el("td", {}, pct(r.kept.mean, 0)), el("td", {}, pct(r.nonempty, 0))));
+    const table = el("div", { class: "tblblock" }, el("h3", {}, `Every α, averaged over ${rs.n.toLocaleString()} re-splits`),
+      el("div", { class: "tbl-wrap" }, el("table", {},
+        el("thead", {}, el("tr", {}, ["α", "Target", "Clean", "Middle 90%", "Kept", "Not emptied"].map((h) => el("th", { scope: "col" }, h)))),
+        el("tbody", {}, trs))),
+      el("p", { class: "note" }, `Highlighted: the main level. Before filtering, ${pct(rs.raw_mean)} of answers are clean on average. Kept is the share of sentences kept; not emptied is the share of answers that keep at least one.`));
+    P.append(el("div", { class: "figs" },
+      fig("coverage_vs_target", "Average coverage meets the target at every α. Where unfiltered answers are already clean enough, the filter does nothing; at stricter levels it follows the diagonal. A single split can fall below the target: the guarantee is about the average."),
+      fig("resplits", "Implementation check: 1,000 random calibration and test splits. Any correct conformal filter reproduces this Beta-binomial curve, even with a random score, so it checks the code, not the method."),
+      fig("matrices", `Left: what happened to each test answer. The dashed cell is the risk the ship rule bounds; ${pct(shipRate)} of shipped answers contained a contradiction, against ${pct(revRate)} of those sent for review (this split only; it didn't replicate). Right: what the filter did to each sentence.`, true),
+      fig("retention_vs_alpha", "The cost of strictness: sentences kept, and answers left with at least one sentence."),
+      table,
+      fig("ablation", "Each score calibrated to the same guarantee. Coverage holds for all of them; a better score only keeps more. With only 12 contradicted test sentences the AUROCs are uncertain (95% bootstrap intervals: combined 0.53–0.84, evidence 0.48–0.84, agreement 0.38–0.71), so no ranking of the scores is supported. The ranges on the left are the middle 90% of re-splits, not confidence intervals.", true)));
+    // Review-queue check: numbers from results/triage_check.md (every held-out answer judged once; 1,000 re-splits)
+    const tqRows = [
+      ["245 test (the headline)", "328 calibration", "31%", "7 of 11 (31⁠–⁠89%)", "1.6%"],
+      ["328 calibration (swapped)", "245 test", "0%", "0 of 23 (0⁠–⁠15%)", "7.0%"],
+      ["All 573, each judged once", "the other half", "13%", "7 of 34 (9⁠–⁠38%)", "4.7%"],
+      ["1,000 random re-splits (mean)", "328 random", "17%", "21% (0⁠–⁠57%)", "4.7% (2.0⁠–⁠8.2%)"],
+    ];
+    P.append(el("h2", { class: "section" }, "Does the review queue hold up?"),
+      el("p", { class: "note" }, "On the test split the pharmacist's queue held 7 of the 11 contradicted answers. That rests on 11 answers, so the same rule was re-run on the 328 calibration answers as well, which the score never saw either. Nothing was re-tuned; this check was added after the test results were seen. The triage didn't replicate: ranked by their weakest sentence, all 573 answers give an AUROC of 0.54 (95% CI 0.44–0.64), and the queue holds little more of the contradicted answers than of all answers. What holds is the bound: over 1,000 re-splits, 4.7% of answers shipped with a contradiction, against 5% (5.9% without the guard). So the guard tells the pharmacist how many drafts they can skip, but with this score, which drafts reach them is close to random."),
+      el("div", { class: "figs" },
+        el("div", { class: "tblblock" }, el("h3", {}, "The same rule on every held-out answer"),
+          el("div", { class: "tbl-wrap" }, el("table", {},
+            el("thead", {}, el("tr", {}, ["Judged", "Calibrated on", "Reviewed", "Contradicted in queue (95% CI)", "Shipped & contradicted"].map((h) => el("th", { scope: "col" }, h)))),
+            el("tbody", {}, tqRows.map((r, i) => el("tr", { class: i === 2 ? "main" : null }, r.map((c) => el("td", {}, c))))))),
+          el("p", { class: "note" }, "The test half has 4.5% contradicted answers, already under the bound, so calibrated on it the rule ships everything, and that half shipped 7.0% with a contradiction. The bound is an average over calibration sets; over the re-splits it held.")),
+        fig("triage_check", "Reviewing the riskiest drafts first barely beats a random order (dotted line). Green: the ship rule with every held-out answer judged once, 7 of 34 contradicted answers in a 13% queue, with its 95% CI.")));
+    if (D.v2) {
+      const k = D.v2.kept || {};
+      P.append(el("h2", { class: "section" }, "With the broader labels"),
+        el("p", { class: "note" }, `The first label rule flagged ${pct(D.v2.raw_wrong)} of raw test answers. At α = ${fmtA(D.v2.alpha)}, re-splits averaged ${pct(D.v2.resplit_mean)} clean against ${pct(D.v2.theory)} predicted, and the combined score kept ${pct(k.combined && k.combined.mean, 0)} of sentences where a random score kept ${pct(k.random && k.random.mean, 0)}.` +
+          (au && au.v2 ? ` Most of these flags are false alarms (${au.v2.real} of ${au.v2.audited} real in the audit), so this shows the score tracks the label pipeline, not necessarily real disagreements.` : "")));
+    }
+    // Question-side tripwire: numbers from results/question_screen_llama_guard.md (run on all 1,300 sampled questions)
+    const lgRows = [
+      ["Tripwire (used): S11, S4, S9", "0 of 819", "0 of 481"],
+      ["Every category except S6", "11 of 819 (1.3%)", "4 of 481 (0.8%)"],
+      ["Every category", "306 of 819 (37.4%)", "169 of 481 (35.1%)"],
+      ["Every category, S6 removed from the prompt (first attempt)", "267 of 819 (32.6%)", "148 of 481 (30.8%)"],
+    ];
+    P.append(el("h2", { class: "section" }, "Question-side tripwire: Llama Guard 3 1B"),
+      el("p", { class: "note" }, "Before any answer is checked, Llama Guard 3 1B screens the question in the same LlamaFirewall. It reads only the question, so it needs no Muse Spark call; on the RTX 4060 it took a median 0.15 s per question. It labelled 35.4% of the 1,300 sampled questions \u201cunsafe: S6 Specialized Advice\u201d, and rated the dataset\u2019s overdose and pathogen questions safe or S6, including the two that triggered the Model API\u2019s content filter. Every in-scope question a broader policy stops is ordinary, such as a pill-colour question labelled S1 Violent Crimes. So the tripwire acts only on S11 Suicide & Self-Harm (to a person) and S4 or S9 (blocked); other categories are recorded and passed on."),
+      el("div", { class: "figs" },
+        el("div", { class: "tblblock" }, el("h3", {}, "Questions stopped under each policy"),
+          el("div", { class: "tbl-wrap" }, el("table", {},
+            el("thead", {}, el("tr", {}, ["Policy", "In scope", "Outside the frozen set"].map((h) => el("th", { scope: "col" }, h)))),
+            el("tbody", {}, lgRows.map((r, i) => el("tr", { class: i === 0 ? "main" : null }, r.map((c) => el("td", {}, c))))))),
+          el("p", { class: "note" }, "In scope, every stop is a false alarm. The policy was chosen after this check and before eight hand-written probes: all three explicit self-harm questions went to a person, one of two mass-harm questions was blocked (an anthrax question came back as S1, which the tripwire does not act on), and all three ordinary questions passed. It does not replace the keyword screen used before calibration.")),
+        fig("llama_guard_questions", "What Llama Guard 3 1B said about each question group. Blue: only S6 Specialized Advice, which the tripwire does not act on.")));
+  }
+
+  // how it works
+  function renderHow() {
+    const H = $("#how");
+    H.append(el("p", { class: "lede" }, el("b", {}, "Who it's for. "), "A pharmacist at a telehealth service whose AI assistant drafts answers to medication questions. They can't read every draft, and wrong answers sound as confident as right ones. Without a guard they must read everything, or let drafts out at an error rate nobody has measured. Conformal Guard lets them set the bound and tells them how many drafts they must read to keep it; over 1,000 re-splits of 573 held-out answers, 4.7 in 100 went out with a contradiction against a bound of 5, while they read about 17. Every decision carries a certificate stating the bound it rests on. Its current score is weak, so the drafts they read are close to a random sample of the right size; a better score would shrink their queue without changing the promise. The pharmacist is an illustrative user; everything here is measured on a public benchmark, with no personal data."),
+      el("p", { class: "how-lede" }, "It does not try to prove any one sentence true. It learns, on answers it was never trained on, how strict to be so that what it lets through contradicts the reference answer no more often than a chosen rate."),
+      el("ol", { class: "steps" },
+        el("li", {}, el("div", {}, el("b", {}, "Answer, then ask again five times"), `Muse Spark (${D.model}, Meta Model API) answers each MedLFQA question once, plus five resamples with the same settings.`)),
+        el("li", {}, el("div", {}, el("b", {}, "Split into sentences"), "A fixed, rule-based splitter turns each answer into sentences, so calibration and use see the same units.")),
+        el("li", {}, el("div", {}, el("b", {}, "Score each sentence"), "How strongly the resamples agree with it (DeBERTa-v3 NLI), whether MedlinePlus passages found with FAISS support it (MiniCheck), and its length and position, combined by a logistic regression fit on the training answers. Position ended up dominating the combined score.")),
+        el("li", {}, el("div", {}, el("b", {}, "Calibrate the threshold"), `On ${D.n_cal} calibration answers, take each answer's highest-scoring contradicted sentence (−∞ if it has none). The threshold is the ⌈(n+1)(1−α)⌉-th smallest of these (split conformal, Mohri and Hashimoto 2024). Keeping only sentences above it makes at least 1−α of filtered answers clean on average, whatever the score.`)),
+        el("li", {}, el("div", {}, el("b", {}, "Decide"), "First, Llama Guard 3 1B screens the question in the same LlamaFirewall: explicit self-harm goes to a person, weapons or child-exploitation questions are blocked. Then an answer whose weakest sentence clears a second, risk-controlled threshold ships as written. Otherwise the filtered answer goes to a person, or is blocked if nothing passes. This runs as a LlamaFirewall scanner (allow, human in the loop, block), and questions unlike the calibration set are marked as outside the calibrated range."))),
+      el("h2", { class: "section" }, "What the guarantee does not say"),
+      el("ul", { class: "notes" },
+        el("li", {}, "It is an average over questions like MedLFQA's, not a promise about one answer. The re-splits show how much a single test set of 245 answers can vary."),
+        el("li", {}, "It is not guaranteed for the answers sent to review. They are picked because they look risky, and the bound is an average over all answers."),
+        el("li", {}, `It holds for the labels used. Labels come from an NLI model comparing sentences with the MedLFQA reference answers. Those were written by physicians only for K-QA golden (${pct(goldenShare, 0)} of test answers); the rest were generated with GPT-4 or taken from health websites. A hand audit measured how often the flags are real, and the broader labels are reported as a check.`),
+        el("li", {}, "The question screen is narrow. Llama Guard 3 1B catches explicit self-harm phrasing, but it rated the dataset\u2019s overdose and pathogen questions safe or \u201cspecialized advice\u201d, so it does not replace the keyword screen used before calibration. The Proof tab has the numbers."),
+        el("li", {}, "It assumes new questions resemble the calibration questions. A similarity check sends clear outliers to a person, but in practice it mostly flags very short questions, and passing it does not guarantee a question is like the calibration set."),
+        el("li", {}, "The scores are black-box, because Muse Spark exposes no token probabilities. On the narrow labels used here they are weak, and the combined score learned mostly sentence position, so the filter drops each answer's opening sentences and keeps about as many sentences as a random score would. The Proof tab shows that cost."),
+        el("li", {}, "Most HealthSearchQA questions are stored in MedLFQA with a row number in front (\"35,Is it normal…\"). They reached the model that way and are shown as sent."),
+        el("li", {}, `This page replays answers cached on ${D.generated}. Live use needs the same five resamples per question; guard.py includes that path, switched off.`)));
+  }
+
+  renderList();
+  select(D.answers.find((a) => a.decision === "review" && a.claims.some((c) => c.label === "contradicted" && c.score <= mainTau)) || D.answers[0]);
+  renderProof();
+  renderHow();
+})();
+</script>
+</body>
+</html>

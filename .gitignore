@@ -1,0 +1,12 @@
+.venv/
+.env
+__pycache__/
+*.pyc
+.ipynb_checkpoints/
+.pytest_cache/
+data/raw/
+cache/
+logs/
+for_me/
+toss/
+data/evidence/

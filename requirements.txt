@@ -1,0 +1,43 @@
+# Local environment for the conformal hallucination guard.
+# Python 3.12. 
+httpx
+tenacity
+python-dotenv
+pyyaml
+
+# --- Local scoring models (NLI, MiniCheck, embeddings) ---
+torch
+transformers
+accelerate            
+sentence-transformers
+huggingface-hub
+datasets
+nltk
+minicheck @ https://github.com/Liyan06/MiniCheck/archive/b58b9fa69acbd1015ec970fa65dd752413a053d2.zip   # zip, so Git isn't needed
+
+# --- Statistics and plots ---
+numpy
+pandas==2.2.3         
+pyarrow
+scipy
+scikit-learn
+mapie==1.6.0
+matplotlib
+plotly
+
+# --- Meta tooling ---
+# llamafirewall is installed separately with --no-deps (see below): its optional code scanner
+# needs semgrep, which has no Windows build for Python 3.12. The custom-scanner hook we use doesn't.
+#   pip install --no-deps llamafirewall==1.0.3
+synthetic-data-kit
+faiss-cpu==1.15.1     
+
+# --- App ---
+fastapi
+uvicorn[standard]
+pydantic>=2.11
+gradio
+
+# --- Dev ---
+pytest
+ipykernel
